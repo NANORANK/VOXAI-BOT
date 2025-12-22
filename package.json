@@ -1,7 +1,6 @@
 {
   "name": "xswift-private-voice-bot",
   "version": "1.0.0",
-  "description": "Private Voice Channel Bot with Panel, Stats, Manager",
   "main": "index.js",
   "type": "module",
   "scripts": {

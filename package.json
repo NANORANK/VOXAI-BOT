@@ -1,11 +1,14 @@
-// package.json
 {
   "name": "xswift-private-voice-bot",
   "version": "1.0.0",
-  "type": "module",
+  "description": "Private Voice Channel Bot with Panel, Stats, Manager",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "discord.js": "^14.22.1",

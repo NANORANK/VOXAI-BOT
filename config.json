@@ -1,0 +1,11 @@
+// config.json
+{
+  "panelChannelId": "",
+  "panelMessageId": "",
+  "voicePanels": {},
+  "stats": {
+    "created": 0,
+    "deleted": 0,
+    "perUser": {}
+  }
+}

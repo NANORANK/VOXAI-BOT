@@ -58,6 +58,13 @@ const save = () => {
 };
 
 /* =======================================================================================
+ * SAFE UTILS (ADD ONLY)
+ * ======================================================================================= */
+function getVoiceData(userId) {
+  return config.voicePanels[userId] ?? null;
+}
+
+/* =======================================================================================
  * CLIENT
  * ======================================================================================= */
 const client = new Client({
@@ -117,7 +124,6 @@ client.on("interactionCreate", async i => {
   if (i.user.id !== ADMIN_ID)
     return i.reply({ content: "❌ Owner เท่านั้น", ephemeral: true });
 
-  /* ---------------- /privatepanel ---------------- */
   if (i.commandName === "privatepanel") {
     const ch = i.options.getChannel("channel");
 
@@ -151,7 +157,6 @@ client.on("interactionCreate", async i => {
     return i.reply({ content: "✅ สร้าง Panel แล้ว", ephemeral: true });
   }
 
-  /* ---------------- /voicemanager ---------------- */
   if (i.commandName === "voicemanager") {
     const embed = new EmbedBuilder()
       .setTitle("ลบห้องเสียงส่วนตัว <a:emoji_27:1449151549602271526>")
@@ -176,7 +181,6 @@ client.on("interactionCreate", async i => {
     });
   }
 
-  /* ---------------- /vstats ---------------- */
   if (i.commandName === "vstats") {
     const active = Object.keys(config.voicePanels).length;
 
@@ -275,6 +279,11 @@ client.on("interactionCreate", async i => {
   };
   save();
 
+  const skipBtn = new ButtonBuilder()
+    .setCustomId(`skip_${i.user.id}`)
+    .setLabel("ข้าม")
+    .setStyle(ButtonStyle.Secondary);
+
   const select = new UserSelectMenuBuilder()
     .setCustomId(`allow_${i.user.id}`)
     .setPlaceholder("เลือกเพื่อนที่อนุญาต (หรือข้าม)")
@@ -283,19 +292,73 @@ client.on("interactionCreate", async i => {
 
   return i.reply({
     content: "เลือกเพื่อน หรือกดข้ามได้เลย",
-    components: [new ActionRowBuilder().addComponents(select)],
+    components: [
+      new ActionRowBuilder().addComponents(skipBtn),
+      new ActionRowBuilder().addComponents(select)
+    ],
     ephemeral: true
   });
 });
 
 /* =======================================================================================
- * CREATE VOICE CHANNEL (WITH CATEGORY)
+ * SKIP CREATE VOICE
+ * ======================================================================================= */
+client.on("interactionCreate", async i => {
+  if (!i.isButton()) return;
+  if (!i.customId.startsWith("skip_")) return;
+
+  const data = getVoiceData(i.user.id);
+  if (!data)
+    return i.reply({ content: "❌ ข้อมูลหมดอายุ", ephemeral: true });
+
+  let category = i.guild.channels.cache.find(
+    c => c.type === ChannelType.GuildCategory && c.name === VOICE_CATEGORY_NAME
+  );
+
+  if (!category) {
+    category = await i.guild.channels.create({
+      name: VOICE_CATEGORY_NAME,
+      type: ChannelType.GuildCategory
+    });
+  }
+
+  const perms = [
+    {
+      id: i.guild.roles.everyone.id,
+      deny: data.lock ? ["Connect"] : []
+    },
+    { id: i.user.id, allow: ["Connect"] }
+  ];
+
+  const ch = await i.guild.channels.create({
+    name: data.name,
+    type: ChannelType.GuildVoice,
+    parent: category.id,
+    userLimit: data.limit === 0 ? null : data.limit,
+    permissionOverwrites: perms
+  });
+
+  data.channelId = ch.id;
+  config.stats.created++;
+  save();
+
+  return i.reply({
+    content: `🎧 สร้างห้องแล้ว <#${ch.id}>`,
+    ephemeral: true
+  });
+});
+
+/* =======================================================================================
+ * CREATE VOICE CHANNEL (USER SELECT)
  * ======================================================================================= */
 client.on("interactionCreate", async i => {
   if (!i.isUserSelectMenu()) return;
   if (!i.customId.startsWith("allow_")) return;
 
-  const data = config.voicePanels[i.user.id];
+  const data = getVoiceData(i.user.id);
+  if (!data)
+    return i.reply({ content: "❌ ข้อมูลหมดอายุ", ephemeral: true });
+
   data.allow = i.values;
 
   let category = i.guild.channels.cache.find(
